@@ -1,67 +1,128 @@
 from flask import Flask, render_template, request, redirect, url_for
-import json
+import psycopg2
 import os
 from datetime import datetime
 
 app = Flask(__name__)
-DATA_FILE = 'data.json'
 
-# ▶ 加载或初始化数据
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-else:
-    data = {}
+# ▶︎ 数据库连接信息
+DB_HOST = "你的Host"
+DB_NAME = "你的Database name"
+DB_USER = "你的Username"
+DB_PASSWORD = "你的Password"
+DB_PORT = 5432  # Render默认是5432端口
+
+def get_db_connection():
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        port=DB_PORT
+    )
+    return conn
+
+# ▶︎ 初始化数据库，确保表存在
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS names (
+            id SERIAL PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS records (
+            id SERIAL PRIMARY KEY,
+            name_id INTEGER REFERENCES names(id) ON DELETE CASCADE,
+            content TEXT,
+            timestamp TEXT
+        );
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+
+init_db()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
     if request.method == 'POST':
-        # 判断是添加名字还是删除名字
         if 'new_name' in request.form:
             new_name = request.form.get('new_name', '').strip()
-            if new_name and new_name not in data:
-                data[new_name] = []
-                save_data()
+            if new_name:
+                try:
+                    cur.execute("INSERT INTO names (name) VALUES (%s)", (new_name,))
+                    conn.commit()
+                except psycopg2.Error:
+                    pass  # 名字重复就忽略
         elif 'delete_name' in request.form:
             delete_name = request.form.get('delete_name', '').strip()
-            if delete_name in data:
-                del data[delete_name]
-                save_data()
-        return redirect(url_for('index'))
+            cur.execute("DELETE FROM names WHERE name = %s", (delete_name,))
+            conn.commit()
 
-    names = list(data.keys())
+    cur.execute("SELECT name FROM names ORDER BY name")
+    names = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+
     return render_template('index.html', names=names)
 
 @app.route('/user/<name>', methods=['GET', 'POST'])
 def user_page(name):
-    if name not in data:
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM names WHERE name = %s", (name,))
+    result = cur.fetchone()
+    if not result:
+        cur.close()
+        conn.close()
         return "无效的名字", 404
+
+    name_id = result[0]
 
     if request.method == 'POST' and 'content' in request.form:
         content = request.form['content'].strip()
         if content:
-            record = {
-                "content": content,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            data[name].append(record)
-            save_data()
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute(
+                "INSERT INTO records (name_id, content, timestamp) VALUES (%s, %s, %s)",
+                (name_id, content, timestamp)
+            )
+            conn.commit()
+
+        cur.close()
+        conn.close()
         return redirect(url_for('user_page', name=name))
 
-    history = data.get(name, [])
+    cur.execute(
+        "SELECT id, content, timestamp FROM records WHERE name_id = %s ORDER BY id",
+        (name_id,)
+    )
+    history = [{"id": row[0], "content": row[1], "timestamp": row[2]} for row in cur.fetchall()]
+
+    cur.close()
+    conn.close()
+
     return render_template('user.html', name=name, history=history)
 
-@app.route('/user/<name>/delete/<int:idx>', methods=['POST'])
-def delete_entry(name, idx):
-    if name in data and 0 <= idx < len(data[name]):
-        data[name].pop(idx)
-        save_data()
-    return redirect(url_for('user_page', name=name))
+@app.route('/user/<name>/delete/<int:record_id>', methods=['POST'])
+def delete_entry(name, record_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
 
-def save_data():
-    """统一保存数据到data.json"""
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    cur.execute("DELETE FROM records WHERE id = %s", (record_id,))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return redirect(url_for('user_page', name=name))
 
 if __name__ == '__main__':
     app.run(debug=True)
