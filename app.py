@@ -6,11 +6,11 @@ from datetime import datetime
 app = Flask(__name__)
 
 # ▶︎ 数据库连接信息
-DB_HOST = "你的Host"
-DB_NAME = "你的Database name"
-DB_USER = "你的Username"
-DB_PASSWORD = "你的Password"
-DB_PORT = 5432  # Render默认是5432端口
+DB_HOST = os.environ.get('DB_HOST')
+DB_NAME = os.environ.get('DB_NAME')
+DB_USER = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_PORT = os.environ.get('DB_PORT', 5432)  # 默认5432
 
 def get_db_connection():
     conn = psycopg2.connect(
