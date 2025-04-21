@@ -6,18 +6,30 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h1>名字列表</h1>
+  <div class="container">
+    <h1>名字列表</h1>
 
-  <!-- 添加新名字 -->
-  <form method="post" style="margin-bottom:1em;">
-    <input type="text" name="new_name" placeholder="输入新名字…" required>
-    <button type="submit">添加名字</button>
-  </form>
+    <!-- 添加新名字 -->
+    <form method="post">
+      <input type="text" name="new_name" placeholder="输入新名字…" required>
+      <button type="submit">添加名字</button>
+    </form>
 
-  <ul>
-    {% for name in names %}
-      <li><a href="{{ url_for('user_page', name=name) }}">{{ name }}</a></li>
-    {% endfor %}
-  </ul>
+    <ul>
+      {% for name in names %}
+        <li>
+          <div>
+            <a href="{{ url_for('user_page', name=name) }}">{{ name }}</a>
+          </div>
+          <div>
+            <form method="post" style="display:inline;">
+              <input type="hidden" name="delete_name" value="{{ name }}">
+              <button type="submit" class="delete" onclick="return confirm('确定要删除 {{ name }} 吗？');">删除</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
 </body>
 </html>

@@ -6,35 +6,38 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <h1>{{ name }}</h1>
+  <div class="container">
+    <h1>{{ name }}</h1>
 
-  <h2>历史记录</h2>
-  {% if history %}
-    <ul>
-      {% for item in history %}
-        <li>
-          <strong>[{{ item.timestamp }}]</strong>
-          {{ item.content }}
-          <!-- 删除按钮 -->
-          <form method="post"
-                action="{{ url_for('delete_entry', name=name, idx=loop.index0) }}"
-                style="display:inline;">
-            <button type="submit">删除</button>
-          </form>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>暂无记录，快来添加吧！</p>
-  {% endif %}
+    <h2>历史记录</h2>
+    {% if history %}
+      <ul>
+        {% for item in history %}
+          <li>
+            <div>
+              <strong>[{{ item.timestamp }}]</strong> {{ item.content }}
+            </div>
+            <div>
+              <form method="post" action="{{ url_for('delete_entry', name=name, idx=loop.index0) }}">
+                <button type="submit" class="delete" onclick="return confirm('确定要删除这一条记录吗？');">删除</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>暂无记录，快来添加吧！</p>
+    {% endif %}
 
-  <h2>添加新内容</h2>
-  <form method="post">
-    <textarea name="content" rows="4" cols="50"
-              placeholder="在这里输入内容…"></textarea><br>
-    <button type="submit">保存</button>
-  </form>
+    <h2>添加新内容</h2>
+    <form method="post">
+      <textarea name="content" placeholder="在这里输入内容…" required></textarea><br>
+      <button type="submit">保存内容</button>
+    </form>
 
-  <p><a href="{{ url_for('index') }}">← 返回列表</a></p>
+    <p style="text-align:center; margin-top:20px;">
+      <a href="{{ url_for('index') }}">← 返回首页</a>
+    </p>
+  </div>
 </body>
 </html>

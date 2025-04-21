@@ -16,11 +16,17 @@ else:
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        new_name = request.form.get('new_name', '').strip()
-        if new_name and new_name not in data:
-            data[new_name] = []
-            with open(DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+        # 判断是添加名字还是删除名字
+        if 'new_name' in request.form:
+            new_name = request.form.get('new_name', '').strip()
+            if new_name and new_name not in data:
+                data[new_name] = []
+                save_data()
+        elif 'delete_name' in request.form:
+            delete_name = request.form.get('delete_name', '').strip()
+            if delete_name in data:
+                del data[delete_name]
+                save_data()
         return redirect(url_for('index'))
 
     names = list(data.keys())
@@ -34,14 +40,12 @@ def user_page(name):
     if request.method == 'POST' and 'content' in request.form:
         content = request.form['content'].strip()
         if content:
-            # 创建带时间戳的记录
             record = {
                 "content": content,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             data[name].append(record)
-            with open(DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            save_data()
         return redirect(url_for('user_page', name=name))
 
     history = data.get(name, [])
@@ -51,9 +55,13 @@ def user_page(name):
 def delete_entry(name, idx):
     if name in data and 0 <= idx < len(data[name]):
         data[name].pop(idx)
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        save_data()
     return redirect(url_for('user_page', name=name))
+
+def save_data():
+    """统一保存数据到data.json"""
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 if __name__ == '__main__':
     app.run(debug=True)
